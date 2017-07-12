@@ -1,0 +1,9 @@
+* datomic.schema
+  datomic.schema DSL with clojure.spec
+
+** Installation
+   [datomic.schema "0.1.0"]
+
+** Usage
+   See [[file:test/datomic/schema_test.clj][test]]
+
