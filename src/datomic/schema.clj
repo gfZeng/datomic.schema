@@ -1,5 +1,5 @@
 (ns datomic.schema
-  (:refer-clojure :exclude [partition namespace])
+  (:refer-clojure :exclude [partition namespace fn])
   (:require [clojure.string :as str]
             [clojure.spec :as s]))
 
@@ -186,7 +186,7 @@
 (defn satisfy-entity [{:as ent :keys [key-mappings coercions]} m]
   (if (enum? ent)
     (qualify-keyword (:ns ent) m)
-    (reduce-kv (fn [e k v]
+    (reduce-kv (clojure.core/fn [e k v]
                  (let [k (key-mappings k k)
                        c (coercions k)]
                    (assoc e k (coerce c v))))
@@ -218,6 +218,18 @@
            (create-entity)))
      (defn ~(symbol (str "->" name)) [m#]
        (coerce ~name m#))))
+
+(defmacro fn [name bindings & body]
+  (assert peer? "fn form must working with peer lib")
+  (let [body (if (= 1 (count body))
+               (first body)
+               (cons 'do body))]
+    {:db/id    (tempid :db.part/db)
+     :db/ident name
+     :db/fn    `(datomic.api/function
+                 {:lang   "clojure"
+                  :params ~bindings
+                  :code   ~body})}))
 
 (defn schemas [& ents]
   (->> (map :schemas ents)
