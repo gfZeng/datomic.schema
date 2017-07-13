@@ -1,7 +1,8 @@
 (ns datomic.schema
   (:refer-clojure :exclude [partition namespace fn])
   (:require [clojure.string :as str]
-            [clojure.spec :as s]))
+            [clojure.spec :as s]
+            [clojure.set :as set]))
 
 (s/def :db.type/keyword keyword?)
 (s/def :db.type/string  string?)
@@ -156,17 +157,21 @@
   ([ent x & xs]
    (reduce enums ent (cons x xs)))
   ([ent x]
-   (let [x  (if (map? x)
-              x
-              {:db/ident x})
-         ns (:ns ent)
-         x  (update x :db/ident #(qualify-keyword ns %))
-         x  (assoc x :db/id
-                   (or (:db/id ent)
-                       (tempid (:partition ent))))]
+   (let [x       (if (map? x)
+                   x
+                   {:db/ident x})
+         ns      (:ns ent)
+         x       (update x :db/ident #(qualify-keyword ns %))
+         x       (map-keys #(qualify-keyword ns %) x)
+         x       (assoc x :db/id
+                        (or (:db/id ent)
+                            (tempid (:partition ent))))
+         depends #{(:partition ent)}]
      (-> ent
          (update :schemas assoc (:db/ident x)
-                 (vary-meta x assoc ::enum? true))
+                 (vary-meta x assoc
+                            ::enum?   true
+                            ::depends depends))
          (vary-meta assoc ::enum? true)))))
 
 (defn camel->ns [clazz]
@@ -207,7 +212,7 @@
 
 (defmacro defentity [name & decls]
   `(do
-     (def ~name
+     (def ~(with-meta name {::entity? true})
        (-> {:partition :db.part/user
             :ns        '~(camel->ns name)
             :schemas   {}
@@ -227,11 +232,33 @@
     {:db/id    (tempid :db.part/db)
      :db/ident name
      :db/fn    `(datomic.api/function
-                 {:lang   "clojure"
-                  :params ~bindings
-                  :code   ~body})}))
+                 '{:lang   "clojure"
+                   :params ~bindings
+                   :code   ~body})}))
 
-(defn schemas [& ents]
-  (->> (map :schemas ents)
-       (apply merge-with merge)
-       (vals)))
+(defn depends [schema]
+  (->> (dissoc schema :db/ident)
+       (apply concat)
+       (set)
+       (set/union (::depends (meta schema)))))
+
+(defn schema-txes
+  ([] (->> (all-ns)
+           (mapcat (comp vals ns-publics))
+           (filter entity?)
+           (map var-get)
+           (apply schema-txes)))
+  ([& ents]
+   (let [schemas (->> (map :schemas ents)
+                      (apply merge-with merge))]
+     (loop [txes   ()
+            idents (set (keys schemas))]
+       (if (empty? idents)
+         txes
+         (let [deps  (->> (map schemas idents)
+                          (map depends)
+                          (apply set/union))
+               tx    (->> (set/difference idents deps)
+                          (map schemas))
+               inter (set/intersection deps idents)]
+           (recur (cons tx txes) inter)))))))
