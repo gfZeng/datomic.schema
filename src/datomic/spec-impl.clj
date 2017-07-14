@@ -1,6 +1,6 @@
 
 (in-ns 'datomic.schema)
-(require '[clojure.spec :as s])
+(require '[clojure.spec.alpha :as s])
 
 (s/def :db.type/keyword keyword?)
 (s/def :db.type/string  string?)

@@ -18,7 +18,7 @@
       (::partition? (meta ent))))
 
 (try
-  (require '[clojure.spec :as s])
+  (require '[clojure.spec.alpha :as s])
   (load "spec-impl")
   (catch Exception e))
 
