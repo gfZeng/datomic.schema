@@ -107,6 +107,12 @@
                                :user/role  :user.role/vip}
                               (->User))]))
 
+  (is @(d/transact conn [(schema/fn :abc/foo [args]
+                           (prn args))]))
+
+  (is (= (with-out-str (d/invoke (d/db conn) :abc/foo [1 2 3]))
+         "[1 2 3]\n"))
+
   (is @(d/transact
         conn
         [[:fn.user/add
