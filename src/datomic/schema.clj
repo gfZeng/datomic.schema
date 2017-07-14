@@ -17,10 +17,11 @@
   (or (:db.install/_partition ent)
       (::partition? (meta ent))))
 
-(try
-  (require '[clojure.spec.alpha :as s])
-  (load "spec-impl")
-  (catch Exception e))
+(when (try
+        (require '[clojure.spec.alpha :as s])
+        true
+        (catch Exception e))
+  (load "spec-impl"))
 
 (defn create-entity [m]
   (with-meta (map->Entity
@@ -168,6 +169,7 @@
             :ns        '~(camel->ns name)
             :schemas   {}
             :coercions {}}
+           (with-meta {::entity? true})
            ~@decls
            (wrap-key-mappings)
            (vary-meta assoc ::entity? true)
@@ -175,17 +177,29 @@
      (defn ~(symbol (str "->" name)) [m#]
        (coerce ~name m#))))
 
+(defn fn'
+  ([ent fname bindings body]
+   (if-not (entity? ent)
+     (fn' ent fname (cons bindings body))
+     (let [fname (qualify-keyword (str "fn." (:ns ent)) fname)]
+       (update ent :schemas assoc fname
+               (fn' fname bindings body)))))
+  ([name bindings body]
+   (let [body (if (= 1 (count body))
+                (first body)
+                (cons 'do body))]
+     {:db/ident name
+      :db/fn    (datomic.api/function
+                 (merge (meta bindings)
+                        {:lang   "clojure"
+                         :params bindings
+                         :code   body}))})))
+
 (defmacro fn [name bindings & body]
   (assert peer? "fn form must working with peer lib")
-  (let [body (if (= 1 (count body))
-               (first body)
-               (cons 'do body))]
-    {:db/id    (tempid :db.part/db)
-     :db/ident name
-     :db/fn    `(datomic.api/function
-                 '{:lang   "clojure"
-                   :params ~bindings
-                   :code   ~body})}))
+  `(fn' ~name '~bindings '~(first body) '~(rest body)))
+
+
 
 (defn depends [schema]
   (->> (dissoc schema :db/ident)
@@ -209,7 +223,12 @@
          (let [deps  (->> (map schemas idents)
                           (map depends)
                           (apply set/union))
-               tx    (->> (set/difference idents deps)
-                          (map schemas))
+               {fns true tx false}
+               (->> (set/difference idents deps)
+                    (map schemas)
+                    (group-by (comp boolean :db/fn)))
                inter (set/intersection deps idents)]
-           (recur (cons tx txes) inter)))))))
+           (recur (cond->> txes
+                    fns (cons fns)
+                    tx  (cons tx))
+                  inter)))))))
