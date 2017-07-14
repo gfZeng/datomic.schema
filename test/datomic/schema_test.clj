@@ -1,6 +1,5 @@
 (ns datomic.schema-test
   (:require [clojure.test :refer :all]
-            [clojure.spec :as s]
             [datomic.schema :as schema :refer [defentity]]
             [datomic.api :as d]))
 
@@ -24,7 +23,8 @@
     (d/connect uri)))
 
 
-@(d/transact conn (schema/schemas User UserRole))
+(doseq [tx (schema/schema-txes User UserRole)]
+  @(d/transact conn tx))
 
 
 (deftest schema-api-test
@@ -32,11 +32,8 @@
                                :name  "isaac"
                                :age   18
                                :role  [:vip :admin]}
-                              (->User)
-                              (s/conform User)
-                              (s/unform User))]))
+                              (->User))]))
   (is @(d/transact conn [(->> {:db/id      "user2"
                                :user/email "goood"
                                :user/role  :user.role/vip}
-                              (s/conform User)
-                              (s/unform User))])))
+                              (->User))])))
