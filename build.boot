@@ -15,7 +15,7 @@
          '[adzerk.bootlaces :refer :all])
 
 (def project 'datomic.schema)
-(def +version+ "0.1.3")
+(def +version+ "0.1.4")
 
 (bootlaces! +version+)
 
