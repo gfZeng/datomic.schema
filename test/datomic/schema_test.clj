@@ -78,6 +78,13 @@
                       {:biological/species (:biological/species user)}))
       [user])))
 
+(defentity SelfDepends
+  (schema/attrs
+   [:foo #'SelfDepends])
+  (schema/raw
+   {:db/id            :self.depends/foo
+    :self.depends/foo :self.depends/foo}))
+
 
 (def conn
   (let [uri "datomic:mem://test"]
@@ -86,7 +93,7 @@
 
 
 ;; `schema/schema-txes` can handle attribute dependencies
-(doseq [tx (schema/schema-txes User Species UserRole Functions)]
+(doseq [tx (schema/schema-txes)]
   @(d/transact conn tx))
 
 (deftest schema-api-test

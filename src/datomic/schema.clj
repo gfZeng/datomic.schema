@@ -126,6 +126,63 @@
                             ::depends depends))
          (vary-meta assoc ::enum? true)))))
 
+(defn fn'
+  ([ent fname bindings body]
+   (if-not (entity? ent)
+     (fn' ent fname (cons bindings body))
+     (let [fname (qualify-keyword (str "fn." (:ns ent)) fname)]
+       (update ent :schemas assoc fname
+               (fn' fname bindings body)))))
+  ([name bindings body]
+   (let [body (if (= 1 (count body))
+                (first body)
+                (cons 'do body))]
+     {:db/ident name
+      :db/fn    (datomic.api/function
+                 (merge (meta bindings)
+                        {:lang   "clojure"
+                         :params bindings
+                         :code   body}))})))
+
+(defmacro fn [name bindings & body]
+  (assert peer? "fn form must working with peer lib")
+  `(fn' ~name '~bindings '~(first body) '~(rest body)))
+
+(defn raw [ent m]
+  (update ent :schemas assoc (gensym) m))
+
+(defn depends [schema]
+  (->> (dissoc schema :db/ident)
+       (apply concat)
+       (set)
+       (set/union (::depends (meta schema)))))
+
+(defn schema-txes
+  ([] (->> (all-ns)
+           (mapcat (comp vals ns-publics))
+           (filter entity?)
+           (map var-get)
+           (apply schema-txes)))
+  ([& ents]
+   (let [schemas (->> (map :schemas ents)
+                      (apply merge-with merge))]
+     (loop [txes   ()
+            idents (set (keys schemas))]
+       (if (empty? idents)
+         txes
+         (let [deps  (->> (map schemas idents)
+                          (map depends)
+                          (apply set/union))
+               {fns true tx false}
+               (->> (set/difference idents deps)
+                    (map schemas)
+                    (group-by (comp boolean :db/fn)))
+               inter (set/intersection deps idents)]
+           (recur (cond->> txes
+                    fns (cons fns)
+                    tx  (cons tx))
+                  inter)))))))
+
 (defn camel->ns [clazz]
   (-> (name clazz)
       (str/replace-first #"\w" str/lower-case)
@@ -176,59 +233,3 @@
            (create-entity)))
      (defn ~(symbol (str "->" name)) [m#]
        (coerce ~name m#))))
-
-(defn fn'
-  ([ent fname bindings body]
-   (if-not (entity? ent)
-     (fn' ent fname (cons bindings body))
-     (let [fname (qualify-keyword (str "fn." (:ns ent)) fname)]
-       (update ent :schemas assoc fname
-               (fn' fname bindings body)))))
-  ([name bindings body]
-   (let [body (if (= 1 (count body))
-                (first body)
-                (cons 'do body))]
-     {:db/ident name
-      :db/fn    (datomic.api/function
-                 (merge (meta bindings)
-                        {:lang   "clojure"
-                         :params bindings
-                         :code   body}))})))
-
-(defmacro fn [name bindings & body]
-  (assert peer? "fn form must working with peer lib")
-  `(fn' ~name '~bindings '~(first body) '~(rest body)))
-
-
-
-(defn depends [schema]
-  (->> (dissoc schema :db/ident)
-       (apply concat)
-       (set)
-       (set/union (::depends (meta schema)))))
-
-(defn schema-txes
-  ([] (->> (all-ns)
-           (mapcat (comp vals ns-publics))
-           (filter entity?)
-           (map var-get)
-           (apply schema-txes)))
-  ([& ents]
-   (let [schemas (->> (map :schemas ents)
-                      (apply merge-with merge))]
-     (loop [txes   ()
-            idents (set (keys schemas))]
-       (if (empty? idents)
-         txes
-         (let [deps  (->> (map schemas idents)
-                          (map depends)
-                          (apply set/union))
-               {fns true tx false}
-               (->> (set/difference idents deps)
-                    (map schemas)
-                    (group-by (comp boolean :db/fn)))
-               inter (set/intersection deps idents)]
-           (recur (cond->> txes
-                    fns (cons fns)
-                    tx  (cons tx))
-                  inter)))))))
