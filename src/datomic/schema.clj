@@ -174,15 +174,10 @@
          (let [deps  (->> (map schemas idents)
                           (map depends)
                           (apply set/union))
-               {fns true tx false}
-               (->> (set/difference idents deps)
-                    (map schemas)
-                    (group-by (comp boolean :db/fn)))
+               tx    (->> (set/difference idents deps)
+                          (map schemas))
                inter (set/intersection deps idents)]
-           (recur (cond->> txes
-                    fns (cons fns)
-                    tx  (cons tx))
-                  inter)))))))
+           (recur (cons tx txes) inter)))))))
 
 (defn camel->ns [clazz]
   (-> (name clazz)
