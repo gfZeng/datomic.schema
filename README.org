@@ -2,8 +2,172 @@
   datomic.schema DSL with clojure.spec
 
 ** Installation
-   [datomic.schema "0.1.5"]
+
+   [[http://clojars.org/datomic.schema/latest-version.svg]]
+
+   #+begin_src clojure
+     [datomic.schema "0.1.5"]
+   #+end_src
+
+** Features
+   - Simplify schema writing
+   - Simplify Database Functions writing
+   - Good readability
+   - Auto resolve schema dependencies
+   - Support clojure.spec
 
 ** Usage
-   See [[file:test/datomic/schema_test.clj][test]]
+   #+begin_src clojure
+     (require '[datomic.schema :as schema :refer [defentity]])
+   #+end_src
+
+*** defentity
+    =(defentity Foo ...)= do two things
+    - define a Clojure record =Foo=, store the datomic's schemas, etc.
+    - define a constructor =->Foo=
+
+    #+begin_src clojure
+      (declare Account UserRole)
+
+      ;; User with 4 attributes
+      ;;   `:user/name`
+      ;;   `:user/email`    with `:db.unique/identity`
+      ;;   `:user/accounts` is   `:db.type/ref`, ref many Accounts
+      ;;   `:user/roles`    is   `:db.type/ref`, ref many Roles
+      (defentity User
+        (schema/attrs
+         [:name     :string]
+         [:email    :string    {:unique :identity}]
+         [:accounts #'Account  {:cardinality :many}]
+         [:roles    #'UserRole {:cardinality :many}]))
+
+      (defentity Account
+        ;; new partition `:db.part/account`, for Account constructor
+        ;; partition must working with datomic peer library
+        (schema/partition :db.part/account)
+        (schema/attrs
+         [:balance :bigdec]
+         ;; `:foo/bar` already qualified,
+         ;; ignore the entity namespace `account`
+         [:foo/bar :string]))
+
+      ;; Enumerations: `:user.type/vip`, `:user.type/blacklist` ...
+      ;; We specify namespace to `:user/type` instead of `:user.role`
+      (defentity UserRole
+        (schema/namespace :user.type)
+        (schema/enums :vip :blacklist :normal))
+
+    #+end_src
+
+*** Install attributes
+    =schema/install-schemas= both support client connection and peer connection
+    #+begin_src clojure
+      ;; only install attributes of User
+      (schema/install-schemas conn User)
+
+      ;; install all defined attributes, `schema-txes` with no argument
+      (schema/install-schemas conn)
+    #+end_src
+
+*** transact
+
+    #+begin_src clojure
+
+      @(d/transact
+          conn
+          [(->User {:name     "isaac"
+                    :email    "abc@example.xyz"
+                    :accounts {:balance 3.0M}
+                    :roles    :vip})])
+
+    #+end_src
+
+
+*** Functions
+    #+begin_src clojure
+      (defentity User
+        (schema/attrs
+         [:name :string])
+
+        ;; database function `:fn.user/valid?`
+        (schema/fn valid? [u]
+          (assert (-> (:user/name u) (count) (< 30))
+                  "`:user/name` must shorter than 30 characters")
+          u)
+
+        ;; transact function, db as first argument, but name is qualified already
+        (schema/fn :user/add [db u]
+          [(d/invoke db :fn.user/valid? u)]))
+
+
+      ;; We also can gather all database function into one entities
+      (defentity Functions
+        (schema/fn :fn.user/new [name]
+          {:user/name name})
+
+        (schema/fn :fn.user/greet [u]
+          (str "greeting " (:user/name u))))
+
+      ;; ok, you may be want to transact functions directly
+      @(d/transact conn [(schema/fn :abc/foo [args]
+                           (prn args))])
+    #+end_src
+
+*** raw api
+    Sometimes, you just want to attach a raw datomic schema to entity. It's fine, let's do it:
+
+    #+begin_src clojure
+
+      (defentity RawSchemas
+        (schema/raw
+         {:db/ident :db/doc
+          :db/doc   "use for write documentation of some entity"}))
+
+      ;; more complicated
+      (defentity SelfDepends
+        (schema/attrs
+         [:foo #'SelfDepends])
+        (schema/raw
+         {:db/doc "hello"}
+         {:db/id            :self.depends/foo
+          :self.depends/foo :self.depends/foo}))
+
+    #+end_src
+
+    #+begin_quote
+    You may curiously why =schema/raw= need co-working with =defentity=, that in order to let those raw schemas managed by =schema/install-schemas=.
+    #+end_quote
+
+
+
+*** entity as spec
+    If =[[https://github.com/clojure/spec.alpha][spec-alpha]]= in your classpath, =defentity= will also product a spec.
+
+    #+begin_src clojure
+
+      (->> (->User {:name "isaac"
+                    :email "abc@example.xyz"
+                    :roles  [:vip]})
+           (s/valid? User))
+      ;;=> true
+
+
+      (->> {:user/name "isaac"
+            :user/email "abc@example.xyz"
+            ;; for datomic, `:db.cardinality/many` also support single entity
+            :user/roles :user.role/vip}
+           (s/valid? User))
+      ;;=> true
+
+
+      (->> {:user/name  "isaac"
+            ;; will fail, because `:user/email` is `:db.cardinality/one`
+            :user/email ["abc@example.xyz"]
+            :user/roles :user.role/vip}
+           (s/valid? User))
+      ;;=> false
+
+    #+end_src
+
+
 
