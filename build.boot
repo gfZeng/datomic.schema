@@ -3,9 +3,13 @@
  :resource-paths #{"resources"}
  :source-paths   #{"src"}
  :dependencies   '[[org.clojure/clojure "1.9.0-alpha17"  :scope "provided"]
+                   [org.clojure/core.async "0.3.443"     :scope "provided"]
                    [com.datomic/datomic-pro "0.9.5561"
                     :scope "provided"
                     :exclusions [org.clojure/clojure]]
+                   [com.datomic/clj-client "0.8.606"
+                    :scope "provided"
+                    :exclusions [org.clojure/*]]
 
                    [adzerk/boot-test "RELEASE" :scope "test"]
                    [adzerk/bootlaces "0.1.13"  :scope "test"]])

@@ -27,7 +27,7 @@
    ;; `:human` enum
    ;; `:human` belongs to `:animal` used `:species/belongs-to` attribute.
    ;; so, we must install attribute `:species/belongs-to` first.
-   ;; It's ok, `schema/schema-txes` can handle this case
+   ;; It's ok, `schema/install-schemas` can handle this case
    {:db/ident           :human
     :species/belongs-to :species/animal}
    {:db/ident           :woman
@@ -93,9 +93,8 @@
     (d/connect uri)))
 
 
-;; `schema/schema-txes` can handle attribute dependencies
-(doseq [tx (schema/schema-txes)]
-  @(d/transact conn tx))
+;; `schema/install-schemas` can handle attribute dependencies
+(schema/install-schemas conn)
 
 (deftest schema-api-test
   (is @(d/transact conn [(->> {:db/id "user1"

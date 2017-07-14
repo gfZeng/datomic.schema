@@ -158,12 +158,16 @@
        (set)
        (set/union (::depends (meta schema)))))
 
+(defn entities
+  ([] (apply entities (all-ns)))
+  ([& nses]
+   (->> nses
+        (mapcat (comp vals ns-publics))
+        (filter entity?)
+        (map var-get))))
+
 (defn schema-txes
-  ([] (->> (all-ns)
-           (mapcat (comp vals ns-publics))
-           (filter entity?)
-           (map var-get)
-           (apply schema-txes)))
+  ([] (apply schema-txes (entities)))
   ([& ents]
    (let [schemas (->> (map :schemas ents)
                       (apply merge-with merge))]
@@ -229,3 +233,18 @@
            (create-entity)))
      (defn ~(symbol (str "->" name)) [m#]
        (coerce ~name m#))))
+
+(defn- peer-conn? [conn]
+  (not (:db-id conn)))
+
+(defn install-schemas
+  ([conn] (apply install-schemas conn (entities)))
+  ([conn & ents]
+   (let [trans (if (peer-conn? conn)
+                 (comp deref
+                    (partial (resolve 'datomic.api/transact) conn))
+                 (comp (resolve 'clojure.core.async/<!!)
+                    (partial (resolve 'datomic.client/transact) conn)
+                    #(vector :tx-data %)))]
+     (doseq [tx (apply schema-txes ents)]
+       (trans tx)))))
