@@ -82,6 +82,7 @@
   (schema/attrs
    [:foo #'SelfDepends])
   (schema/raw
+   {:db/doc "hello"}
    {:db/id            :self.depends/foo
     :self.depends/foo :self.depends/foo}))
 
