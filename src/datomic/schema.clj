@@ -148,7 +148,7 @@
   (assert peer? "fn form must working with peer lib")
   `(fn' ~name '~bindings '~(first body) '~(rest body)))
 
-(defn raw [ent & xs]
+(defn raws [ent & xs]
   (update ent :schemas merge
           (zipmap (repeatedly gensym) xs)))
 

@@ -81,7 +81,7 @@
 (defentity SelfDepends
   (schema/attrs
    [:foo #'SelfDepends])
-  (schema/raw
+  (schema/raws
    {:db/doc "hello"}
    {:db/id            :self.depends/foo
     :self.depends/foo :self.depends/foo}))

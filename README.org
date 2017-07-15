@@ -113,13 +113,13 @@
                            (prn args))])
     #+end_src
 
-*** raw api
+*** raws api
     Sometimes, you just want to attach a raw datomic schema to entity. It's fine, let's do it:
 
     #+begin_src clojure
 
       (defentity RawSchemas
-        (schema/raw
+        (schema/raws
          {:db/ident :db/doc
           :db/doc   "use for write documentation of some entity"}))
 
@@ -127,7 +127,7 @@
       (defentity SelfDepends
         (schema/attrs
          [:foo #'SelfDepends])
-        (schema/raw
+        (schema/raws
          {:db/doc "hello"}
          {:db/id            :self.depends/foo
           :self.depends/foo :self.depends/foo}))
@@ -135,7 +135,7 @@
     #+end_src
 
     #+begin_quote
-    You may curiously why =schema/raw= need co-working with =defentity=, that in order to let those raw schemas managed by =schema/install-schemas=.
+    You may curiously why =schema/raws= need co-working with =defentity=, that in order to let those raw schemas managed by =schema/install-schemas=.
     #+end_quote
 
 
