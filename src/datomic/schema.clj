@@ -244,12 +244,16 @@
 
 (defn install
   ([conn] (apply install conn (schemas)))
-  ([conn & ents]
-   (let [trans (if (peer-conn? conn)
+  ([conn & schemas-or-nses]
+   (let [scms  (mapcat #(if (schema? %)
+                          [%]
+                          (schemas (the-ns %)))
+                       schemas-or-nses)
+         trans (if (peer-conn? conn)
                  (comp deref
                     (partial (resolve 'datomic.api/transact) conn))
                  (comp (resolve 'clojure.core.async/<!!)
                     (partial (resolve 'datomic.client/transact) conn)
                     #(vector :tx-data %)))]
-     (doseq [tx (apply tx-datas ents)]
+     (doseq [tx (apply tx-datas scms)]
        (trans tx)))))

@@ -98,6 +98,7 @@
 
 
 ;; `schema/install` can handle attribute dependencies
+(schema/install conn *ns*)
 (schema/install conn)
 
 (deftest schema-api-test
