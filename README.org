@@ -1,5 +1,5 @@
 * datomic.schema
-  datomic.schema DSL with clojure.spec
+  A DSL for datomic.schema definition
 
 ** Installation
 
@@ -10,21 +10,44 @@
    #+end_src
 
 ** Features
-   - Simplify schema writing
-   - Simplify Database Functions writing
+   - Simplify schemas definition
+   - Simplify Database Functions definition
    - Good readability
    - Auto resolve schema dependencies
-   - Support clojure.spec
+   - Generate clojure.spec for entities
 
 ** Usage
    #+begin_src clojure
      (require '[datomic.schema :as schema :refer [defentity]])
    #+end_src
 
-*** defentity
+*** Get Started
+    #+begin_src clojure
+
+      (defentity User
+        (schema/attrs
+         [:name :string]))
+
+      ;; Construction Usage
+      (->User {:name "isaac"})
+      ;;=> {:user/name "isaac"}
+
+      ;; Spec Usage
+      (require '[clojure.spec.alpha :as s])
+      (s/valid? User {:user/name "isaac"})
+
+      ;; Install schemas
+      (schema/install-schemas datomic-peer-connection-or-client-connection)
+
+    #+end_src
+    
+    Now, let's do some more complicated stuff.
+
+
+*** Defentity
     =(defentity Foo ...)= do two things
-    - define a Clojure record =Foo=, store the datomic's schemas, etc.
-    - define a constructor =->Foo=
+    - Define a Clojure record =Foo=, store the datomic's schemas, etc.
+    - Define a constructor =->Foo=
 
     #+begin_src clojure
       (declare Account UserRole)
@@ -69,8 +92,8 @@
       (schema/install-schemas conn)
     #+end_src
 
-*** transact
-
+*** Transact & Construct
+    Assume we use peer lib.
     #+begin_src clojure
 
       @(d/transact
@@ -113,7 +136,45 @@
                            (prn args))])
     #+end_src
 
-*** raws api
+*** Schema dependencies
+
+    #+begin_src clojure
+
+      (defentity Species
+        (schema/attrs
+         [:parent #'Species])
+        (schema/enums
+         :animal
+         {:db/ident :bird
+          :parent   :species/animal}))
+
+
+    #+end_src
+
+    That will produce three datomic schemas like belowing. In this case, the third(=:species/bird=) schema depends on previous two schemas, it's fine, this is considered by the =schema/install-schemas=.
+
+    #+begin_src clojure
+
+      ;; one attribtes
+      {:db/ident              :species/parent
+       :db/valueType          :db.type/ref
+       :db/cardinality        :db.cardinality/one
+       :db.install/_attribute :db.part/db}
+
+      ;; `:species/animal`
+      {:db/ident              :species/animal}
+
+      ;; `:species/bird`
+      {:db/ident              :species/bird
+       :species/parent        :species/animal}
+
+    #+end_src
+
+
+
+
+
+*** Raws api
     Sometimes, you just want to attach a raw datomic schema to entity. It's fine, let's do it:
 
     #+begin_src clojure
@@ -140,8 +201,8 @@
 
 
 
-*** entity as spec
-    If =[[https://github.com/clojure/spec.alpha][spec-alpha]]= in your classpath, =defentity= will also product a spec.
+*** Entity as spec
+    If [[https://github.com/clojure/spec.alpha][spec-alpha]] in your classpath, =defentity= will also produce a spec.
 
     #+begin_src clojure
 
@@ -154,7 +215,7 @@
 
       (->> {:user/name "isaac"
             :user/email "abc@example.xyz"
-            ;; for datomic, `:db.cardinality/many` also support single entity
+            ;; for datomic, `:db.cardinality/many` also support single value
             :user/roles :user.role/vip}
            (s/valid? User))
       ;;=> true
