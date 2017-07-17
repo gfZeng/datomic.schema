@@ -14,7 +14,7 @@
    - Simplify Database Functions definition
    - Good readability
    - Auto resolve schema dependencies
-   - Generate clojure.spec for entities
+   - Generate clojure.spec for schemas
 
 ** Usage
    #+begin_src clojure
@@ -88,7 +88,7 @@
       ;; only install attributes of User
       (schema/install conn User)
 
-      ;; install all defined attributes, `schema-txes` with no argument
+      ;; install all defined attributes, `schema/install` with no argument
       (schema/install conn)
     #+end_src
 
@@ -123,7 +123,7 @@
           [(d/invoke db :fn.user/valid? u)]))
 
 
-      ;; We also can gather all database function into one entities
+      ;; We also can gather all database function into one schema
       (defschema Functions
         (schema/fn :fn.user/new [name]
           {:user/name name})

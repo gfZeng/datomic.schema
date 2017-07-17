@@ -24,16 +24,16 @@
                             :double  :db.type/double
                             :bigdec  :db.type/bigdec))
 
-(defn- schema-spec [{:as ent :keys [coercions schemas]}]
+(defn- schema-spec [{:as ent :keys [coercions tx-data]}]
   (if (enum? ent)
     (eval `(s/spec ~(into #{}
                           (comp (filter enum?)
                              (map :db/ident))
-                          (vals schemas))))
+                          (vals tx-data))))
     (do
       (doseq [[k spec] coercions
               :let     [spec  (s/specize* spec)
-                        many? (-> schemas
+                        many? (-> tx-data
                                   (get k)
                                   (:db/cardinality)
                                   #{:db.cardinality/many})]]

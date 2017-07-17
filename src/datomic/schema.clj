@@ -3,7 +3,7 @@
   (:require [clojure.string :as str]
             [clojure.set :as set]))
 
-(defrecord Schema [partition ns schemas
+(defrecord Schema [partition ns tx-data
                    key-mappings coercions spec])
 
 (defn schema? [ent]
@@ -59,7 +59,7 @@
         part (assoc part :db.install/_partition :db.part/db)]
     (-> ent
         (assoc  :partition (:db/ident part))
-        (update :schemas assoc (:db/ident part) part))))
+        (update :tx-data assoc (:db/ident part) part))))
 
 (defn namespace [ent ns]
   (assoc ent :ns ns))
@@ -102,7 +102,7 @@
                 type
                 (:db/valueType a))]
      (-> ent
-         (update :schemas assoc (:db/ident a) a)
+         (update :tx-data assoc (:db/ident a) a)
          (assoc-in [:coercions (:db/ident a)] spec)))))
 
 (defn enums
@@ -120,7 +120,7 @@
                             (tempid (:partition ent))))
          depends #{(:partition ent)}]
      (-> ent
-         (update :schemas assoc (:db/ident x)
+         (update :tx-data assoc (:db/ident x)
                  (vary-meta x assoc
                             ::enum?   true
                             ::depends depends))
@@ -131,7 +131,7 @@
    (if-not (schema? ent)
      (fn' ent fname (cons bindings body))
      (let [fname (qualify-keyword (str "fn." (:ns ent)) fname)]
-       (update ent :schemas assoc fname
+       (update ent :tx-data assoc fname
                (fn' fname bindings body)))))
   ([name bindings body]
    (let [body (if (= 1 (count body))
@@ -149,7 +149,7 @@
   `(fn' ~name '~bindings '~(first body) '~(rest body)))
 
 (defn raws [ent & xs]
-  (update ent :schemas merge
+  (update ent :tx-data merge
           (zipmap (repeatedly gensym) xs)))
 
 (defn depends [schema]
@@ -158,30 +158,30 @@
        (set)
        (set/union (::depends (meta schema)))))
 
-(defn entities
-  ([] (apply entities (all-ns)))
+(defn schemas
+  ([] (apply schemas (all-ns)))
   ([& nses]
    (->> nses
         (mapcat (comp vals ns-publics))
         (filter schema?)
         (map var-get))))
 
-(defn schema-txes
-  ([] (apply schema-txes (entities)))
+(defn tx-datas
+  ([] (apply tx-datas (schemas)))
   ([& ents]
-   (let [schemas (->> (map :schemas ents)
+   (let [tx-data (->> (map :tx-data ents)
                       (apply merge-with merge))]
-     (loop [txes   ()
-            idents (set (keys schemas))]
+     (loop [datas  ()
+            idents (set (keys tx-data))]
        (if (empty? idents)
-         txes
-         (let [deps  (->> (map schemas idents)
+         datas
+         (let [deps  (->> (map tx-data idents)
                           (map depends)
                           (apply set/union))
-               tx    (->> (set/difference idents deps)
-                          (map schemas))
+               data  (->> (set/difference idents deps)
+                          (map tx-data))
                inter (set/intersection deps idents)]
-           (recur (cons tx txes) inter)))))))
+           (recur (cons data datas) inter)))))))
 
 (defn camel->ns [clazz]
   (-> (name clazz)
@@ -189,8 +189,8 @@
       (str/replace #"[A-Z]" #(str "." (str/lower-case %)))
       (symbol)))
 
-(defn wrap-key-mappings [{:as ent schemas :schemas}]
-  (let [idents (keys schemas)]
+(defn wrap-key-mappings [{:as ent tx-data :tx-data}]
+  (let [idents (keys tx-data)]
     (assoc ent :key-mappings
            (zipmap (map (comp keyword name) idents) idents))))
 
@@ -224,7 +224,7 @@
      (def ~(with-meta name {::schema? true})
        (-> {:partition :db.part/user
             :ns        '~(camel->ns name)
-            :schemas   {}
+            :tx-data   {}
             :coercions {}}
            (with-meta {::schema? true})
            ~@decls
@@ -243,7 +243,7 @@
   (not (:db-id conn)))
 
 (defn install
-  ([conn] (apply install conn (entities)))
+  ([conn] (apply install conn (schemas)))
   ([conn & ents]
    (let [trans (if (peer-conn? conn)
                  (comp deref
@@ -251,5 +251,5 @@
                  (comp (resolve 'clojure.core.async/<!!)
                     (partial (resolve 'datomic.client/transact) conn)
                     #(vector :tx-data %)))]
-     (doseq [tx (apply schema-txes ents)]
+     (doseq [tx (apply tx-datas ents)]
        (trans tx)))))

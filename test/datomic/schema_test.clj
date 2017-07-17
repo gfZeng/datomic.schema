@@ -14,6 +14,10 @@
    [:role               #'UserRole {:cardinality :many}]
    [:age                :long      {:index true}]))
 
+(defschema ReDefine
+  (schema/attrs
+   [:user/name :string {:unique :identity}]))
+
 (defschema Species
   ;; attributes for Species enumeration
   (schema/attrs
@@ -97,6 +101,8 @@
 (schema/install conn)
 
 (deftest schema-api-test
+  (is (= (-> ReDefine :tx-data :user/name)
+         (-> User :tx-data :user/name)))
   (is @(d/transact conn [(->> {:db/id "user1"
                                :name  "isaac"
                                :age   18
