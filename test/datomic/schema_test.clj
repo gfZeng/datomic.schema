@@ -101,6 +101,10 @@
 (schema/install conn *ns*)
 (schema/install conn)
 
+@(d/transact conn [{:db/ident              :user/email
+                    :db/valueType          :db.type/string
+                    :db/index              true}])
+
 (deftest schema-api-test
   (is (= (-> ReDefine :tx-data :user/name)
          (-> User :tx-data :user/name)))

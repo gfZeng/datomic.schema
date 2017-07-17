@@ -93,10 +93,7 @@
                            :db.cardinality/one))
 
                 (:db/unique a)
-                (update :db/unique #(qualify-keyword "db.unique" %))
-
-                true
-                (assoc :db.install/_attribute :db.part/db))
+                (update :db/unique #(qualify-keyword "db.unique" %)))
 
          spec (if (var? type)
                 type
