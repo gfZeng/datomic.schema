@@ -18,13 +18,13 @@
 
 ** Usage
    #+begin_src clojure
-     (require '[datomic.schema :as schema :refer [defentity]])
+     (require '[datomic.schema :as schema :refer [defschema]])
    #+end_src
 
 *** Get Started
     #+begin_src clojure
 
-      (defentity User
+      (defschema User
         (schema/attrs
          [:name :string]))
 
@@ -37,15 +37,15 @@
       (s/valid? User {:user/name "isaac"})
 
       ;; Install schemas
-      (schema/install-schemas datomic-peer-connection-or-client-connection)
+      (schema/install datomic-peer-connection-or-client-connection)
 
     #+end_src
     
     Now, let's do some more complicated stuff.
 
 
-*** Defentity
-    =(defentity Foo ...)= do two things
+*** Defschema
+    =(defschema Foo ...)= do two things
     - Define a Clojure record =Foo=, store the datomic's schemas, etc.
     - Define a constructor =->Foo=
 
@@ -57,39 +57,39 @@
       ;;   `:user/email`    with `:db.unique/identity`
       ;;   `:user/accounts` is   `:db.type/ref`, ref many Accounts
       ;;   `:user/roles`    is   `:db.type/ref`, ref many Roles
-      (defentity User
+      (defschema User
         (schema/attrs
          [:name     :string]
          [:email    :string    {:unique :identity}]
          [:accounts #'Account  {:cardinality :many}]
          [:roles    #'UserRole {:cardinality :many}]))
 
-      (defentity Account
+      (defschema Account
         ;; new partition `:db.part/account`, for Account constructor
         ;; partition must working with datomic peer library
         (schema/partition :db.part/account)
         (schema/attrs
          [:balance :bigdec]
          ;; `:foo/bar` already qualified,
-         ;; ignore the entity namespace `account`
+         ;; ignore the schema namespace `account`
          [:foo/bar :string]))
 
       ;; Enumerations: `:user.type/vip`, `:user.type/blacklist` ...
       ;; We specify namespace to `:user/type` instead of `:user.role`
-      (defentity UserRole
+      (defschema UserRole
         (schema/namespace :user.type)
         (schema/enums :vip :blacklist :normal))
 
     #+end_src
 
 *** Install attributes
-    =schema/install-schemas= both support client connection and peer connection
+    =schema/install= both support client connection and peer connection
     #+begin_src clojure
       ;; only install attributes of User
-      (schema/install-schemas conn User)
+      (schema/install conn User)
 
       ;; install all defined attributes, `schema-txes` with no argument
-      (schema/install-schemas conn)
+      (schema/install conn)
     #+end_src
 
 *** Transact & Construct
@@ -108,7 +108,7 @@
 
 *** Functions
     #+begin_src clojure
-      (defentity User
+      (defschema User
         (schema/attrs
          [:name :string])
 
@@ -124,7 +124,7 @@
 
 
       ;; We also can gather all database function into one entities
-      (defentity Functions
+      (defschema Functions
         (schema/fn :fn.user/new [name]
           {:user/name name})
 
@@ -140,7 +140,7 @@
 
     #+begin_src clojure
 
-      (defentity Species
+      (defschema Species
         (schema/attrs
          [:parent #'Species])
         (schema/enums
@@ -151,7 +151,7 @@
 
     #+end_src
 
-    That will produce three datomic schemas like belowing. In this case, the third(=:species/bird=) schema depends on previous two schemas, it's fine, this is considered by the =schema/install-schemas=.
+    That will produce three datomic schemas like belowing. In this case, the third(=:species/bird=) schema depends on previous two schemas, it's fine, this is considered by the =schema/install=.
 
     #+begin_src clojure
 
@@ -171,21 +171,18 @@
     #+end_src
 
 
-
-
-
 *** Raws api
-    Sometimes, you just want to attach a raw datomic schema to entity. It's fine, let's do it:
+    Sometimes, you just want to attach a raw datomic schema to schema-record. It's fine, let's do it:
 
     #+begin_src clojure
 
-      (defentity RawSchemas
+      (defschema RawSchemas
         (schema/raws
          {:db/ident :db/doc
           :db/doc   "use for write documentation of some entity"}))
 
       ;; more complicated
-      (defentity SelfDepends
+      (defschema SelfDepends
         (schema/attrs
          [:foo #'SelfDepends])
         (schema/raws
@@ -196,13 +193,13 @@
     #+end_src
 
     #+begin_quote
-    You may curiously why =schema/raws= need co-working with =defentity=, that in order to let those raw schemas managed by =schema/install-schemas=.
+    You may curiously why =schema/raws= need co-working with =defschema=, that in order to let those raw schemas managed by =schema/install=.
     #+end_quote
 
 
 
-*** Entity as spec
-    If [[https://github.com/clojure/spec.alpha][spec-alpha]] in your classpath, =defentity= will also produce a spec.
+*** Schema as spec
+    If [[https://github.com/clojure/spec.alpha][spec-alpha]] in your classpath, =defschema= will also produce a spec.
 
     #+begin_src clojure
 

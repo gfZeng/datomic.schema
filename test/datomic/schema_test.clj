@@ -1,12 +1,12 @@
 (ns datomic.schema-test
   (:require [clojure.test :refer :all]
-            [datomic.schema :as schema :refer [defentity]]
+            [datomic.schema :as schema :refer [defschema]]
             [datomic.api :as d]))
 
 
 (declare UserRole Species)
 
-(defentity User
+(defschema User
   (schema/attrs
    [:name               :string    {:unique :identity}]
    [:email              :string    {:unique :identity}]
@@ -14,7 +14,7 @@
    [:role               #'UserRole {:cardinality :many}]
    [:age                :long      {:index true}]))
 
-(defentity Species
+(defschema Species
   ;; attributes for Species enumeration
   (schema/attrs
    [:belongs-to #'Species])
@@ -27,7 +27,7 @@
    ;; `:human` enum
    ;; `:human` belongs to `:animal` used `:species/belongs-to` attribute.
    ;; so, we must install attribute `:species/belongs-to` first.
-   ;; It's ok, `schema/install-schemas` can handle this case
+   ;; It's ok, `schema/install` can handle this case
    {:db/ident           :human
     :species/belongs-to :species/animal}
    {:db/ident           :woman
@@ -38,7 +38,7 @@
    ;; a robot
    :robot))
 
-(defentity UserRole
+(defschema UserRole
   (schema/enums :vip :admin :normal))
 
 (defn belongs-to? [s1 s2]
@@ -65,7 +65,7 @@
                      (belongs-to? s' s)))
                  species-set))))))
 
-(defentity Functions
+(defschema Functions
 
   (schema/fn :fn.species/human?
     ^{:requires [[datomic.schema-test :as dst]]}
@@ -78,7 +78,7 @@
                       {:biological/species (:biological/species user)}))
       [user])))
 
-(defentity SelfDepends
+(defschema SelfDepends
   (schema/attrs
    [:foo #'SelfDepends])
   (schema/raws
@@ -93,8 +93,8 @@
     (d/connect uri)))
 
 
-;; `schema/install-schemas` can handle attribute dependencies
-(schema/install-schemas conn)
+;; `schema/install` can handle attribute dependencies
+(schema/install conn)
 
 (deftest schema-api-test
   (is @(d/transact conn [(->> {:db/id "user1"

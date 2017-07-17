@@ -24,7 +24,7 @@
                             :double  :db.type/double
                             :bigdec  :db.type/bigdec))
 
-(defn- entity-spec [{:as ent :keys [coercions schemas]}]
+(defn- schema-spec [{:as ent :keys [coercions schemas]}]
   (if (enum? ent)
     (eval `(s/spec ~(into #{}
                           (comp (filter enum?)
@@ -45,12 +45,12 @@
 
 
 (extend-protocol s/Specize
-  datomic.schema.Entity
+  datomic.schema.Schema
   (specize*
     ([this]
      (let [spec (:spec this)]
        (or @spec
-           (swap! spec #(or % (entity-spec this))))))
+           (swap! spec #(or % (schema-spec this))))))
     ([this _]
      (s/specize* this)))
 

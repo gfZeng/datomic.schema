@@ -3,12 +3,12 @@
   (:require [clojure.string :as str]
             [clojure.set :as set]))
 
-(defrecord Entity [partition ns schemas
+(defrecord Schema [partition ns schemas
                    key-mappings coercions spec])
 
-(defn entity? [ent]
-  (or (instance? datomic.schema.Entity ent)
-      (::entity? (meta ent))))
+(defn schema? [ent]
+  (or (instance? datomic.schema.Schema ent)
+      (::schema? (meta ent))))
 
 (defn enum? [ent]
   (::enum? (meta ent)))
@@ -23,8 +23,8 @@
         (catch Exception e))
   (load "spec-impl"))
 
-(defn create-entity [m]
-  (with-meta (map->Entity
+(defn create-schema [m]
+  (with-meta (map->Schema
               (assoc m :spec (atom nil)))
     (meta m)))
 
@@ -128,7 +128,7 @@
 
 (defn fn'
   ([ent fname bindings body]
-   (if-not (entity? ent)
+   (if-not (schema? ent)
      (fn' ent fname (cons bindings body))
      (let [fname (qualify-keyword (str "fn." (:ns ent)) fname)]
        (update ent :schemas assoc fname
@@ -163,7 +163,7 @@
   ([& nses]
    (->> nses
         (mapcat (comp vals ns-publics))
-        (filter entity?)
+        (filter schema?)
         (map var-get))))
 
 (defn schema-txes
@@ -197,7 +197,7 @@
 
 (declare coerce)
 
-(defn satisfy-entity [{:as ent :keys [key-mappings coercions]} m]
+(defn satisfy-schema [{:as ent :keys [key-mappings coercions]} m]
   (if (enum? ent)
     (qualify-keyword (:ns ent) m)
     (reduce-kv (clojure.core/fn [e k v]
@@ -212,33 +212,38 @@
     (var? c)
       (coerce (var-get c) m)
 
-    (entity? c)
+    (schema? c)
       (if (sequential? m)
-        (map #(satisfy-entity c %) m)
-        (satisfy-entity c m))
+        (map #(satisfy-schema c %) m)
+        (satisfy-schema c m))
 
     :else m))
 
-(defmacro defentity [name & decls]
+(defmacro defschema [name & decls]
   `(do
-     (def ~(with-meta name {::entity? true})
+     (def ~(with-meta name {::schema? true})
        (-> {:partition :db.part/user
             :ns        '~(camel->ns name)
             :schemas   {}
             :coercions {}}
-           (with-meta {::entity? true})
+           (with-meta {::schema? true})
            ~@decls
            (wrap-key-mappings)
-           (vary-meta assoc ::entity? true)
-           (create-entity)))
+           (vary-meta assoc ::schema? true)
+           (create-schema)))
      (defn ~(symbol (str "->" name)) [m#]
        (coerce ~name m#))))
+
+(defmacro defentity
+  {:deprecated "0.1.7"}
+  [name & decls]
+  `(defschema ~name ~@decls))
 
 (defn- peer-conn? [conn]
   (not (:db-id conn)))
 
-(defn install-schemas
-  ([conn] (apply install-schemas conn (entities)))
+(defn install
+  ([conn] (apply install conn (entities)))
   ([conn & ents]
    (let [trans (if (peer-conn? conn)
                  (comp deref
