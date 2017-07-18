@@ -35,7 +35,8 @@
     :db/ident :gender/female}))
 
 (deftest client-conn-test
-  (schema/install conn NS)
-  (let [t (-> conn :state deref :t)]
+  (when-not (client/error? conn)
     (schema/install conn NS)
-    (is (= (-> conn :state deref :t) t))))
+    (let [t (-> conn :state deref :t)]
+      (schema/install conn NS)
+      (is (= (-> conn :state deref :t) t)))))
