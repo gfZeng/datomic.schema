@@ -99,13 +99,24 @@
 
 ;; `schema/install` can handle attribute dependencies
 (schema/install conn *ns*)
-(schema/install conn)
+
+(defschema Foo
+  (schema/attrs
+   [:bar :string]))
 
 @(d/transact conn [{:db/ident              :user/email
                     :db/valueType          :db.type/string
                     :db/index              true}])
 
 (deftest schema-api-test
+  (let [t (d/basis-t (d/db conn))]
+    (schema/install conn User UserRole Functions)
+    (is (= (d/basis-t (d/db conn)) t)))
+
+  (let [t (d/basis-t (d/db conn))]
+    (schema/install conn User UserRole Functions Foo)
+    (is (= (d/basis-t (d/db conn)) (inc t))))
+
   (is (= (-> ReDefine :tx-data :user/name)
          (-> User :tx-data :user/name)))
   (is @(d/transact conn [(->> {:db/id "user1"

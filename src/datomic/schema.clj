@@ -1,7 +1,8 @@
 (ns datomic.schema
   (:refer-clojure :exclude [partition namespace fn])
   (:require [clojure.string :as str]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [clojure.walk :as walk]))
 
 (defrecord Schema [partition ns tx-data
                    key-mappings coercions spec])
@@ -113,7 +114,7 @@
          x       (update x :db/ident #(qualify-keyword ns %))
          x       (map-keys #(qualify-keyword ns %) x)
          x       (assoc x :db/id
-                        (or (:db/id ent)
+                        (or (:db/id x)
                             (tempid (:partition ent))))
          depends #{(:partition ent)}]
      (-> ent
@@ -239,18 +240,75 @@
 (defn- peer-conn? [conn]
   (not (:db-id conn)))
 
+
+(defmacro with-alias [aliases & body]
+  (let [names    (map str aliases)
+        ns-names (set names)
+        aliases  (apply array-map names)
+        w        (clojure.core/fn w [body]
+                   (walk/walk
+                    (clojure.core/fn [x]
+                      (cond
+                        (and (symbol? x)
+                             (ns-names (clojure.core/namespace x)))
+                          (let [ns  (clojure.core/namespace x)
+                                ns  (aliases ns ns)
+                                sym (symbol ns (name x))]
+                            `(var-get (resolve '~sym)))
+
+                        (coll? x)
+                          (w x)
+
+                        :else
+                          x))
+                    identity
+                    body))]
+    (cons
+     'do
+     (w body))))
+
 (defn install
   ([conn] (apply install conn (schemas)))
   ([conn & schemas-or-nses]
-   (let [scms  (mapcat #(if (schema? %)
-                          [%]
-                          (schemas (the-ns %)))
-                       schemas-or-nses)
-         trans (if (peer-conn? conn)
-                 (comp deref
-                    (partial (resolve 'datomic.api/transact) conn))
-                 (comp (resolve 'clojure.core.async/<!!)
-                    (partial (resolve 'datomic.client/transact) conn)
-                    #(vector :tx-data %)))]
-     (doseq [tx (apply tx-datas scms)]
-       (trans tx)))))
+   (with-alias [a clojure.core.async
+                d datomic.api
+                c datomic.client]
+     (let [scms  (mapcat #(if (schema? %)
+                            [%]
+                            (schemas (the-ns %)))
+                         schemas-or-nses)
+           peer? (peer-conn? conn)
+           trans (if peer?
+                   (comp deref
+                      (partial d/transact conn))
+                   (comp a/<!!
+                      (partial c/transact conn)
+                      #(array-map :tx-data %)))
+           with  (clojure.core/fn [tx-data]
+                   (let [db     (if peer?
+                                  (d/db conn)
+                                  (a/<!! (c/with-db conn)))
+                         withed (if peer?
+                                  (d/with db tx-data)
+                                  (a/<!! (c/with db {:tx-data tx-data})))
+                         tmpids (-> withed :tempids
+                                    (set/map-invert))]
+                     (when (and (not peer?)
+                                (c/error? withed))
+                       (throw (ex-info "Got error" withed)))
+                     (->> withed
+                          (:tx-data)
+                          (rest)
+                          (remove #(zero? (:e %)))
+                          (map (clojure.core/fn [[e a v _ added]]
+                                 (if added
+                                   [:db/add (tmpids e e) a v]
+                                   [:db/retract e a v])))
+                          (seq))))]
+       (doseq [tx    (apply tx-datas scms)
+               :let  [tx (with tx)]
+               :when tx
+               :let  [ret (trans tx)]]
+         (when (and (not peer?)
+                    (c/error? ret))
+           (throw (ex-info "Got error" ret))))))))
