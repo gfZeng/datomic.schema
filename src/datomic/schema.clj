@@ -195,14 +195,14 @@
 
 (declare coerce)
 
-(defn satisfy-schema [{:as ent :keys [key-mappings coercions]} m]
+(defn satisfy-schema [{:as ent :keys [partition key-mappings coercions]} m]
   (if (enum? ent)
     (qualify-keyword (:ns ent) m)
     (reduce-kv (clojure.core/fn [e k v]
                  (let [k (key-mappings k k)
                        c (coercions k)]
                    (assoc e k (coerce c v))))
-               {}
+               {:db/id (or (:db/id m) (tempid partition))}
                m)))
 
 (defn coerce [c m]
