@@ -1,5 +1,5 @@
 * datomic.schema
-  A DSL for datomic.schema definition
+  A DSL for [[http://www.datomic.com/][Datomic]] schema definition
 
 ** Installation
 
@@ -42,7 +42,6 @@
     #+end_src
     
     Now, let's do some more complicated stuff.
-
 
 *** Defschema
     =(defschema Foo ...)= do two things
@@ -104,7 +103,6 @@
                     :roles    :vip})])
 
     #+end_src
-
 
 *** Functions
     #+begin_src clojure
@@ -170,7 +168,6 @@
 
     #+end_src
 
-
 *** Raws api
     Sometimes, you just want to attach a raw datomic schema to schema-record. It's fine, let's do it:
 
@@ -197,9 +194,8 @@
     #+end_quote
 
 
-
 *** Schema as spec
-    If [[https://github.com/clojure/spec.alpha][spec-alpha]] in your classpath, =defschema= will also produce a spec.
+    If [[https://github.com/clojure/spec.alpha][spec.alpha]] in your classpath, =defschema= will also produce a spec.
 
     #+begin_src clojure
 
@@ -229,3 +225,10 @@
 
 
 
+
+
+**  Differences from [[https://github.com/SparkFund/spec-tacular][spec-tacular]]
+   - schema installation support both peer & client.
+   - auto resolve dependencies of schemas for installation.
+   - generate spec for schemas.
+   - simple, no util functions except =schema/install=, [[https://github.com/SparkFund/spec-tacular][spec-tacular]] provide more utilities. IMO, the `datomic.api` is good enough.
