@@ -27,8 +27,8 @@
 (task-options!
  pom {:project     project
       :version     +version+
-      :description "FIXME: write description"
-      :url         "http://example/FIXME"
+      :description "A DSL for Datomic Schema Definitions"
+      :url         "https://github.com/gfZeng/datomic.schema"
       :scm         {:url "https://github.com/yourname/datomic.schema"}
       :license     {"Eclipse Public License"
                     "http://www.eclipse.org/legal/epl-v10.html"}})
