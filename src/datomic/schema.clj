@@ -22,6 +22,24 @@
         (require '[clojure.spec.alpha :as s])
         true
         (catch Exception e))
+  (when (and (= (:major *clojure-version*) 1)
+             (< (:minor *clojure-version*) 9))
+    (defn boolean?
+      "Return true if x is a Boolean"
+      [x] (instance? Boolean x))
+    (defn int?
+      "Return true if x is a fixed precision integer"
+      [x] (or (instance? Long x)
+              (instance? Integer x)
+              (instance? Short x)
+              (instance? Byte x)))
+    (defn double?
+      "Return true if x is a Double"
+      [x] (instance? Double x))
+    (defn bigdec?
+      "Return true if x is a BigDecimal"
+      [x] (instance? java.math.BigDecimal x)))
+
   (load "spec-impl"))
 
 (defn create-schema [m]
