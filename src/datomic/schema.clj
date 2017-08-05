@@ -22,7 +22,6 @@
         (require '[clojure.spec.alpha :as s])
         true
         (catch Exception e))
-
   (load "spec-impl"))
 
 (defn create-schema [m]
