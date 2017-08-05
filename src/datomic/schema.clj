@@ -18,11 +18,10 @@
   (or (:db.install/_partition ent)
       (::partition? (meta ent))))
 
-(when (try
-        (require '[clojure.spec.alpha :as s])
-        true
-        (catch Exception e))
-  (load "spec-impl"))
+(try
+  (require '[clojure.spec.alpha :as s])
+  (load "spec-impl")
+  (catch java.io.FileNotFoundException e))
 
 (defn create-schema [m]
   (with-meta (map->Schema
