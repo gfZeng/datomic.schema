@@ -2,6 +2,26 @@
 (in-ns 'datomic.schema)
 (require '[clojure.spec.alpha :as s])
 
+;;; A compatible layer to support clojure 1.8.0
+(when (and (= (:major *clojure-version*) 1)
+           (< (:minor *clojure-version*) 9))
+  (defn boolean?
+    "Return true if x is a Boolean"
+    [x] (instance? Boolean x))
+  (defn int?
+    "Return true if x is a fixed precision integer"
+    [x] (or (instance? Long x)
+            (instance? Integer x)
+            (instance? Short x)
+            (instance? Byte x)))
+  (defn double?
+    "Return true if x is a Double"
+    [x] (instance? Double x))
+  (defn bigdec?
+    "Return true if x is a BigDecimal"
+    [x] (instance? java.math.BigDecimal x)))
+
+
 (s/def :db.type/keyword keyword?)
 (s/def :db.type/string  string?)
 (s/def :db.type/boolean boolean?)
