@@ -13,6 +13,8 @@
                     :age  18
                     :role [:vip :admin]}
                    (->User))]
+    (is (s/valid? :db.type/bigint 3N))
+    (is (s/valid? :db.type/bigint (BigInteger. "3")))
     (is (= user (->> user
                      (s/conform User)
                      (s/unform User))))
