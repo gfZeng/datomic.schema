@@ -14,6 +14,7 @@
   (s/def :db.type/float   (?type Float))
   (s/def :db.type/double  (?type Double))
   (s/def :db.type/bigdec  (?type BigDecimal))
+  (s/def :db.type/uuid    (?type java.util.UUID))
   (s/def :db.type/lookup  (s/cat :key keyword?
                                  :val :db/valueType))
   (s/def :db.type/ident (s/or :ident  keyword?
