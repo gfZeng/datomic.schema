@@ -276,31 +276,21 @@
   ([conn & schemas-or-nses]
    (with-alias [a clojure.core.async
                 d datomic.api
-                c datomic.client]
+                c datomic.client.api]
      (let [scms  (mapcat #(if (schema? %)
                             [%]
                             (schemas (the-ns %)))
                          schemas-or-nses)
            peer? (peer-conn? conn)
            trans (if peer?
-                   (comp deref
-                      (partial d/transact conn))
-                   (comp a/<!!
-                      (partial c/transact conn)
-                      #(array-map :tx-data %)))
+                   #(deref (d/transact conn %))
+                   #(c/transact conn {:tx-data %}))
            with  (clojure.core/fn [tx-data]
-                   (let [db     (if peer?
-                                  (d/db conn)
-                                  (a/<!! (c/with-db conn)))
-                         withed (if peer?
-                                  (d/with db tx-data)
-                                  (a/<!! (c/with db {:tx-data tx-data})))
-                         tmpids (-> withed :tempids
-                                    (set/map-invert))]
-                     (when (and (not peer?)
-                                (c/error? withed))
-                       (throw (ex-info "Got error" withed)))
-                     (->> withed
+                   (let [report (if peer?
+                                  (d/with (d/db conn) tx-data)
+                                  (c/with (c/with-db conn) {:tx-data tx-data}))
+                         tmpids (-> report :tempids (set/map-invert))]
+                     (->> report
                           (:tx-data)
                           (rest)
                           (remove #(zero? (:e %)))
@@ -311,8 +301,5 @@
                           (seq))))]
        (doseq [tx    (apply tx-datas scms)
                :let  [tx (with tx)]
-               :when tx
-               :let  [ret (trans tx)]]
-         (when (and (not peer?)
-                    (c/error? ret))
-           (throw (ex-info "Got error" ret))))))))
+               :when tx]
+         (trans tx))))))

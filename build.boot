@@ -2,12 +2,12 @@
 (set-env!
  :resource-paths #{"resources"}
  :source-paths   #{"src"}
- :dependencies   '[[org.clojure/clojure "1.9.0-alpha17"  :scope "provided"]
+ :dependencies   '[[org.clojure/clojure "1.9.0"  :scope "provided"]
                    [org.clojure/core.async "0.3.443"     :scope "provided"]
-                   [com.datomic/datomic-pro "0.9.5561"
+                   [com.datomic/datomic-pro "0.9.5661"
                     :scope "provided"
                     :exclusions [org.clojure/clojure]]
-                   [com.datomic/clj-client "0.8.606"
+                   [com.datomic/client-pro "0.8.14"
                     :scope "provided"
                     :exclusions [org.clojure/*]]
 
