@@ -136,11 +136,15 @@
                 (first body)
                 (cons 'do body))]
      {:db/ident name
-      :db/fn    (datomic.api/function
+      :db/fn    ((resolve 'datomic.api/function)
                  (merge (meta bindings)
                         {:lang   "clojure"
                          :params bindings
                          :code   body}))})))
+
+(when-not peer?
+  (defn fn' [& args]
+    (println "Peer lib required")))
 
 (defmacro fn [name bindings & body]
   (assert peer? "fn form must working with peer lib")
