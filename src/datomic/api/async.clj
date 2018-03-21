@@ -27,14 +27,16 @@
         (exh e)))
     p))
 
-(defn retry-when-error [pred]
+(defn retry-when-error [async-pred]
   (fn [{:as report ::keys [conn tx-data]}]
-    (go-loop []
-      (when (pred report)
+    (go-loop [report (assoc report ::ntry 0)]
+      (when (<! (async-pred report))
         (when (::e (<! (transact conn tx-data)))
-          (recur))))))
+          (recur (update report ::ntry inc)))))))
 
-(def retry-on-error (retry-when-error (constantly true)))
+(def retry-on-error
+  (let [p (a/promise-chan) (a/put! p true)]
+    (retry-when-error (constantly p))))
 
 (defn split-pipe
   ([from splits]
