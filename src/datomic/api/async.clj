@@ -39,9 +39,9 @@
     (a/put! p true)
     (retry-when-error (constantly p))))
 
-(defn split-pipe
+(defn splited-pipe
   ([from splits]
-   (split-pipe from splits true))
+   (splited-pipe from splits true))
   ([from splits close?]
    (go-loop [fly nil]
      (when-some [ch (<! splits)]
@@ -63,7 +63,7 @@
    (let [txes   (chan)
          splits (chan)]
 
-     (split-pipe txes splits)
+     (splited-pipe txes splits)
 
      (go-loop []
        (let [ch   (chan)
