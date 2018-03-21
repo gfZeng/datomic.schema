@@ -54,16 +54,15 @@
               x)
             (when close?
               (a/close! splits)
-              (a/close! ch)))))))))
+              (a/close! ch)))))))
+   splits))
 
 (defn transact-pool
   ([n]
    (transact-pool n #(go (.printStackTrace ^Exception (::e %)))))
   ([n exh]
    (let [txes   (chan)
-         splits (chan)]
-
-     (splited-pipe txes splits)
+         splits (splited-pipe txes (chan))]
 
      (go-loop []
        (let [ch   (chan)
