@@ -6,7 +6,7 @@
    [[http://clojars.org/datomic.schema/latest-version.svg]]
 
    #+begin_src clojure
-     [datomic.schema "0.1.14"]
+     [datomic.schema "0.1.15"]
    #+end_src
 
 ** Features
