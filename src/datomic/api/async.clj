@@ -88,6 +88,20 @@
 
      txes)))
 
+(defmacro flush<!
+  ([ch]
+   `(flush! Long/MAX_VALUE ~ch))
+  ([n ch]
+   `(let [x#   (<! ~ch)
+          ret# (when x# (transient [x#]))]
+      (when ret#
+        (loop [i# ~n]
+          (if-some [x# (when (pos? i#) (a/poll! ~ch))]
+            (do
+              (conj! ret# x#)
+              (recur (dec i#)))
+            (persistent! ret#)))))))
+
 (defn pooled
   ([conn pool]
    (pooled conn pool (chan 10)))
