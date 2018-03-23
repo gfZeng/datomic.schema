@@ -37,7 +37,7 @@
 (def retry-always
   (let [p (a/promise-chan)]
     (a/put! p true)
-    (retry-when-error (constantly p))))
+    (retry-when (constantly p))))
 
 (defn splited-pipe
   ([from splits]
@@ -90,7 +90,7 @@
 
 (defmacro flush<!
   ([ch]
-   `(flush! Long/MAX_VALUE ~ch))
+   `(flush<! Long/MAX_VALUE ~ch))
   ([n ch]
    `(let [x#   (<! ~ch)
           ret# (when x# (transient [x#]))]
