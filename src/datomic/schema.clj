@@ -293,11 +293,10 @@
                      (->> report
                           (:tx-data)
                           (rest)
-                          (remove #(zero? (:e %)))
                           (map (clojure.core/fn [[e a v _ added]]
                                  (if added
                                    [:db/add (tmpids e e) a v]
-                                   [:db/retract e a v])))
+                                   (prn "WARN" [:db/retract e a v]))))
                           (seq))))]
        (doseq [tx    (apply tx-datas scms)
                :let  [tx (with tx)]
