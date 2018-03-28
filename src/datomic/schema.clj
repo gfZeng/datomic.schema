@@ -289,14 +289,26 @@
                    (let [report (if peer?
                                   (d/with (d/db conn) tx-data)
                                   (c/with (c/with-db conn) {:tx-data tx-data}))
-                         tmpids (-> report :tempids (set/map-invert))]
+                         tmpids (-> report :tempids (set/map-invert))
+
+                         pull-id (clojure.core/fn [ident]
+                                   (:db/id
+                                    (if peer?
+                                      (d/pull (d/db conn) [:db/id] ident)
+                                      (c/pull (c/db conn) [:db/id] ident))))
+                         rms     #{(pull-id :db/txInstant)}
+                         refs    (set (map pull-id [:db.install/partition
+                                                    :db.install/attribute
+                                                    :db.install/function
+                                                    :db.install/valueType]))]
                      (->> report
                           (:tx-data)
-                          (rest)
+                          (remove #(rms (:a %)))
                           (map (clojure.core/fn [[e a v _ added]]
-                                 (if added
-                                   [:db/add (tmpids e e) a v]
-                                   (prn "WARN" [:db/retract e a v]))))
+                                 (let [v (if (refs a) (tmpids v v) v)]
+                                   (if added
+                                     [:db/add (tmpids e e) a v]
+                                     (prn "WARN" [:db/retract e a v])))))
                           (seq))))]
        (doseq [tx    (apply tx-datas scms)
                :let  [tx (with tx)]
