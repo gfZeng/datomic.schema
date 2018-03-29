@@ -274,8 +274,7 @@
 (defn install
   ([conn] (apply install conn (schemas)))
   ([conn & schemas-or-nses]
-   (with-alias [a clojure.core.async
-                d datomic.api
+   (with-alias [d datomic.api
                 c datomic.client.api]
      (let [scms  (mapcat #(if (schema? %)
                             [%]
@@ -285,32 +284,12 @@
            trans (if peer?
                    #(deref (d/transact conn %))
                    #(c/transact conn {:tx-data %}))
-           with  (clojure.core/fn [tx-data]
-                   (let [report (if peer?
-                                  (d/with (d/db conn) tx-data)
-                                  (c/with (c/with-db conn) {:tx-data tx-data}))
-                         tmpids (-> report :tempids (set/map-invert))
 
-                         pull-id (clojure.core/fn [ident]
-                                   (:db/id
-                                    (if peer?
-                                      (d/pull (d/db conn) [:db/id] ident)
-                                      (c/pull (c/db conn) [:db/id] ident))))
-                         rms     #{(pull-id :db/txInstant)}
-                         refs    (set (map pull-id [:db.install/partition
-                                                    :db.install/attribute
-                                                    :db.install/function
-                                                    :db.install/valueType]))]
-                     (->> report
-                          (:tx-data)
-                          (remove #(rms (:a %)))
-                          (map (clojure.core/fn [[e a v _ added]]
-                                 (let [v (if (refs a) (tmpids v v) v)]
-                                   (if added
-                                     [:db/add (tmpids e e) a v]
-                                     (prn "WARN" [:db/retract e a v])))))
-                          (seq))))]
+           updated? (clojure.core/fn [tx-data]
+                      (let [report (if peer?
+                                     (d/with (d/db conn) tx-data)
+                                     (c/with (c/with-db conn) {:tx-data tx-data}))]
+                        (> (count (:tx-data report)) 1)))]
        (doseq [tx    (apply tx-datas scms)
-               :let  [tx (with tx)]
-               :when tx]
+               :when (updated? tx)]
          (trans tx))))))
