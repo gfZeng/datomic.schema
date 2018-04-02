@@ -3,31 +3,29 @@
 (require '[clojure.spec.alpha :as s])
 
 
-(letfn [(?type [& clazzs]
-          (clojure.core/fn [x]
-            (some #(instance? % x) clazzs)))]
-  (s/def :db.type/keyword (?type clojure.lang.Keyword))
-  (s/def :db.type/string  (?type String))
-  (s/def :db.type/boolean (?type Boolean))
-  (s/def :db.type/long    (?type Integer Long))
-  (s/def :db.type/bigint  (?type BigInteger clojure.lang.BigInt))
-  (s/def :db.type/float   (?type Float))
-  (s/def :db.type/double  (?type Double))
-  (s/def :db.type/bigdec  (?type BigDecimal))
-  (s/def :db.type/uuid    (?type java.util.UUID))
-  (s/def :db.type/lookup  (s/cat :key keyword?
-                                 :val :db/valueType))
-  (s/def :db.type/ident (s/or :ident  keyword?
-                              :id     int?
-                              :lookup :db.type/lookup))
-  (s/def :db/valueType  (s/or :keyword :db.type/keyword
-                              :string  :db.type/string
-                              :boolean :db.type/boolean
-                              :long    :db.type/boolean
-                              :bigint  :db.type/bigint
-                              :float   :db.type/float
-                              :double  :db.type/double
-                              :bigdec  :db.type/bigdec)))
+(s/def :db.type/keyword keyword?)
+(s/def :db.type/string  string?)
+(s/def :db.type/boolean boolean?)
+(s/def :db.type/long    int?)
+(s/def :db.type/bigint  integer?)
+(s/def :db.type/float   float?)
+(s/def :db.type/double  double?)
+(s/def :db.type/bigdec  decimal?)
+(s/def :db.type/uuid    uuid?)
+(s/def :db.type/bytes   bytes?)
+(s/def :db.type/lookup  (s/cat :key keyword?
+                               :val :db/valueType))
+(s/def :db.type/ident (s/or :ident  keyword?
+                            :id     int?
+                            :lookup :db.type/lookup))
+(s/def :db/valueType  (s/or :keyword :db.type/keyword
+                            :string  :db.type/string
+                            :boolean :db.type/boolean
+                            :long    :db.type/boolean
+                            :bigint  :db.type/bigint
+                            :float   :db.type/float
+                            :double  :db.type/double
+                            :bigdec  :db.type/bigdec))
 
 (defn- schema-spec [{:as ent :keys [coercions tx-data]}]
   (if (enum? ent)

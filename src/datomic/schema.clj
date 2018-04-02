@@ -142,10 +142,6 @@
                          :params bindings
                          :code   body}))})))
 
-(when-not peer?
-  (defn fn' [& args]
-    (println "Peer lib required")))
-
 (defmacro fn [name bindings & body]
   (assert peer? "fn form must working with peer lib")
   `(fn' ~name '~bindings '~(first body) '~(rest body)))
