@@ -8,13 +8,13 @@
   (or (ex-data e)
       (ex-data (.getCause e))))
 
-(defn transact [conn tx-data]
+(defn transact! [conn tx-data]
   (let [p   (a/promise-chan)
         exh (fn [e]
               (a/put! p (assoc (ex-data* e)
-                               ::conn conn
-                               ::e e
-                               ::tx-data tx-data)))]
+                               :db.error/conn conn
+                               :db.error/e e
+                               :db.error/tx-data tx-data)))]
     (try
       (let [fut (d/transact-async conn tx-data)]
         (d/add-listener
@@ -28,11 +28,11 @@
     p))
 
 (defn retry-when [async-pred]
-  (fn [{:as report ::keys [conn tx-data]}]
-    (go-loop [report (assoc report ::ntry 0)]
+  (fn [{:as report :db.error/keys [conn tx-data]}]
+    (go-loop [report (assoc report :db.error/ntry 0)]
       (when (<! (async-pred report))
-        (when (::e (<! (transact conn tx-data)))
-          (recur (update report ::ntry inc)))))))
+        (when (:db.error/e (<! (transact conn tx-data)))
+          (recur (update report :db.error/ntry inc)))))))
 
 (def retry-always
   (let [p (a/promise-chan)]
@@ -59,7 +59,7 @@
 
 (defn transact-pool
   ([n]
-   (transact-pool n #(go (.printStackTrace ^Exception (::e %)))))
+   (transact-pool n #(go (.printStackTrace ^Exception (:db.error/e %)))))
   ([n exh]
    (let [txes   (chan)
          splits (splited-pipe txes (chan))]
@@ -69,7 +69,7 @@
              pipe (chan n)]
          (>! splits ch)
          (go-loop []
-           (if-some [{::keys [conn tx-data]} (<! ch)]
+           (if-some [{:db.error/keys [conn tx-data]} (<! ch)]
              (do
                (>! pipe (transact conn tx-data))
                (recur))
@@ -78,7 +78,7 @@
          (loop []
            (when-some [p (<! pipe)]
              (let [report (<! p)]
-               (when (::e report)
+               (when (:db.error/e report)
                  (a/close! ch)
                  (<! (exh report))))
              (recur))))
@@ -108,8 +108,8 @@
   ([conn pool ch]
    (go-loop []
      (if-some [tx-data (<! ch)]
-       (when (>! pool {::conn    conn
-                       ::tx-data tx-data})
+       (when (>! pool {:db.error/conn    conn
+                       :db.error/tx-data tx-data})
          (recur))
        (a/close! pool)))
    ch))
@@ -122,8 +122,8 @@
   ([pool conn ch close?]
    (go-loop []
      (when-some [tx-data (<! ch)]
-       (if (>! pool {::conn    conn
-                     ::tx-data tx-data})
+       (if (>! pool {:db.error/conn    conn
+                     :db.error/tx-data tx-data})
          (recur)
          (when close? (a/close! ch)))))
    ch))
