@@ -31,7 +31,7 @@
   (fn [{:as report :db.error/keys [conn tx-data]}]
     (go-loop [report (assoc report :db.error/ntry 0)]
       (when (<! (async-pred report))
-        (when (:db.error/e (<! (transact conn tx-data)))
+        (when (:db.error/e (<! (transact! conn tx-data)))
           (recur (update report :db.error/ntry inc)))))))
 
 (def retry-always
@@ -71,7 +71,7 @@
          (go-loop []
            (if-some [{:db.error/keys [conn tx-data]} (<! ch)]
              (do
-               (>! pipe (transact conn tx-data))
+               (>! pipe (transact! conn tx-data))
                (recur))
              (a/close! pipe)))
 
