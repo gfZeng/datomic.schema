@@ -11,6 +11,7 @@
 (s/def :db.type/float   float?)
 (s/def :db.type/double  double?)
 (s/def :db.type/bigdec  decimal?)
+(s/def :db.type/instant inst?)
 (s/def :db.type/uuid    uuid?)
 (s/def :db.type/bytes   bytes?)
 (s/def :db.type/lookup  (s/cat :key keyword?
@@ -25,7 +26,8 @@
                             :bigint  :db.type/bigint
                             :float   :db.type/float
                             :double  :db.type/double
-                            :bigdec  :db.type/bigdec))
+                            :bigdec  :db.type/bigdec
+                            :instant :db.type/instant))
 
 (defn- schema-spec [{:as ent :keys [coercions tx-data]}]
   (if (enum? ent)
